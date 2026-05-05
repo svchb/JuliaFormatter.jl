@@ -117,6 +117,7 @@ force_no_unaryop_whitespace(
     ::JuliaSyntax.Kind,
     ::AbstractVector{<:JuliaSyntax.GreenNode},
     ::Int,
+    ::State,
 ) = false
 
 function source_op_kind(
@@ -2347,7 +2348,7 @@ function p_unaryopcall(
     for (i, c) in enumerate(childs)
         offset = s.offset
         if i > 1 && kind(c) in KSet"Whitespace" &&
-           !force_no_unaryop_whitespace(style, opkind, childs, i)
+           !force_no_unaryop_whitespace(style, opkind, childs, i, s)
             add_node!(t, Whitespace(1), s)
         end
         n = pretty(style, c, s, ctx, lineage)

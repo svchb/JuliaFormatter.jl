@@ -48,19 +48,25 @@ function force_binaryop_whitespace(
     !ctx.nospace &&
         !(ctx.from_ref || ctx.from_colon) &&
         !any(x -> x[1] === K"macrocall", lineage) &&
-        opkind in KSet"= + - * / % && ||"
+        opkind in KSet"= + - * / % && || < > <= >= == != === !== <: >:"
 end
 function force_no_unaryop_whitespace(
     ::SciMLStyle,
     opkind::JuliaSyntax.Kind,
     childs::AbstractVector{<:JuliaSyntax.GreenNode},
     i::Int,
+    s::State,
 )
     opkind in KSet"+ -" || return false
 
     next_idx = findnext(n -> !JuliaSyntax.is_whitespace(n), childs, i + 1)
     next_idx === nothing && return false
-    return kind(childs[next_idx]) in KSet"Integer Float Float32"
+    kind(childs[next_idx]) in KSet"Integer Float Float32" && return true
+    kind(childs[next_idx]) === K"Identifier" || return false
+
+    offset = s.offset + sum(span, childs[i:(next_idx-1)]; init = 0)
+    val = getsrcval(s.doc, offset:(offset+span(childs[next_idx])-1))
+    return Base.isidentifier(val) && Base.Unicode.category_code(first(val)) != 4
 end
 
 function is_binaryop_nestable(::SciMLStyle, cst::JuliaSyntax.GreenNode)

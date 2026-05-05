@@ -571,6 +571,30 @@
         SciMLStyle(),
     ) == "run_search(graph; algorithm = DepthFirst())"
 
+    @test format_text(
+        "is_ordered=left<right",
+        SciMLStyle(),
+    ) == "is_ordered = left < right"
+
+    @test format_text(
+        "same=left==right",
+        SciMLStyle(),
+    ) == "same = left == right"
+
+    @test format_text(
+        "inside=lower<=value<=upper",
+        SciMLStyle(),
+    ) == "inside = lower <= value <= upper"
+
+    @test format_text(
+        "constraint = T<:Real",
+        SciMLStyle(),
+    ) == "constraint = T <: Real"
+
+    @test format_text(
+        "offset = - index",
+        SciMLStyle(),
+    ) == "offset = -index"
 
     @testset "optimal nesting" begin
         @testset "function definition" begin
