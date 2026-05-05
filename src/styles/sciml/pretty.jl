@@ -39,6 +39,30 @@ function options(::SciMLStyle)
     )
 end
 
+function force_binaryop_whitespace(
+    ::SciMLStyle,
+    opkind::JuliaSyntax.Kind,
+    ctx::PrettyContext,
+    lineage::Vector{Tuple{JuliaSyntax.Kind,Bool,Bool}},
+)
+    !ctx.nospace &&
+        !(ctx.from_ref || ctx.from_colon) &&
+        !any(x -> x[1] === K"macrocall", lineage) &&
+        opkind in KSet"= + - * / % && ||"
+end
+function force_no_unaryop_whitespace(
+    ::SciMLStyle,
+    opkind::JuliaSyntax.Kind,
+    childs::AbstractVector{<:JuliaSyntax.GreenNode},
+    i::Int,
+)
+    opkind in KSet"+ -" || return false
+
+    next_idx = findnext(n -> !JuliaSyntax.is_whitespace(n), childs, i + 1)
+    next_idx === nothing && return false
+    return kind(childs[next_idx]) in KSet"Integer Float Float32"
+end
+
 function is_binaryop_nestable(::SciMLStyle, cst::JuliaSyntax.GreenNode)
     if (defines_function(cst) || is_assignment(cst))
         return false
@@ -88,7 +112,6 @@ for f in [
 end
 
 for f in [
-    :p_call,
     :p_curly,
     :p_ref,
     :p_braces,
@@ -112,6 +135,64 @@ for f in [
     end
 end
 
+function _empty_named_tuple_call(fst::FST, s::State)
+    if fst.typ === TupleN &&
+       length(fst.nodes::Vector) == 3 &&
+       fst[1].typ === PUNCTUATION &&
+       fst[1].val == "(" &&
+       fst[2].typ === SEMICOLON &&
+       fst[3].typ === PUNCTUATION &&
+       fst[3].val == ")"
+        t = FST(Call, fst.indent)
+        add_node!(
+            t,
+            FST(IDENTIFIER, fst[1].line_offset, fst.startline, fst.startline, "NamedTuple"),
+            s;
+            join_lines = true,
+        )
+        add_node!(
+            t,
+            FST(PUNCTUATION, -1, fst.startline, fst.startline, "("),
+            s;
+            join_lines = true,
+        )
+        add_node!(
+            t,
+            FST(PUNCTUATION, -1, fst.startline, fst.startline, ")"),
+            s;
+            join_lines = true,
+        )
+        return t
+    end
+    return fst
+end
+
+function _separate_positional_kwargs_with_semicolon!(fst::FST)
+    nodes = fst.nodes::Vector{FST}
+    kw_idx = findfirst(n -> n.typ === Kw, nodes)
+    kw_idx === nothing && return
+    any(is_comma, nodes[1:(kw_idx-1)]) || return
+
+    separate_kwargs_with_semicolon!(fst)
+end
+
+function p_call(
+    ss::SciMLStyle,
+    cst::JuliaSyntax.GreenNode,
+    s::State,
+    ctx::PrettyContext,
+    lineage::Vector{Tuple{JuliaSyntax.Kind,Bool,Bool}},
+)
+    style = getstyle(ss)
+    t = if s.opts.yas_style_nesting
+        p_call(YASStyle(style), cst, s, ctx, lineage)
+    else
+        p_call(DefaultStyle(style), cst, s, ctx, lineage)
+    end
+    ctx.can_separate_kwargs && _separate_positional_kwargs_with_semicolon!(t)
+    return t
+end
+
 function p_tuple(
     ss::SciMLStyle,
     cst::JuliaSyntax.GreenNode,
@@ -119,11 +200,12 @@ function p_tuple(
     ctx::PrettyContext,
     lineage::Vector{Tuple{JuliaSyntax.Kind,Bool,Bool}},
 )
-    if s.opts.yas_style_nesting
+    t = if s.opts.yas_style_nesting
         p_tuple(YASStyle(getstyle(ss)), cst, s, ctx, lineage)
     else
         p_tuple(DefaultStyle(getstyle(ss)), cst, s, ctx, lineage)
     end
+    return _empty_named_tuple_call(t, s)
 end
 
 function p_macrocall(

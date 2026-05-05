@@ -483,6 +483,95 @@
     end"""
     @test format_text(str_, SciMLStyle(); margin = 1) == str
 
+    @test format_text(
+        """
+        for index = indices
+            visit(index)
+        end
+        """,
+        SciMLStyle(),
+    ) == """
+    for index in indices
+        visit(index)
+    end
+    """
+
+    @test format_text(
+        "values = [visit(index) for index ∈ indices]",
+        SciMLStyle(),
+    ) == "values = [visit(index) for index in indices]"
+
+    @test format_text(
+        "solve(problem, algorithm; abstol=1e-6, reltol=1e-3)",
+        SciMLStyle(),
+    ) == "solve(problem, algorithm; abstol = 1e-6, reltol = 1e-3)"
+
+    @test format_text(
+        "configure(;backend=CPUBackend(),cache=true)",
+        SciMLStyle(),
+    ) == "configure(; backend = CPUBackend(), cache = true)"
+
+    @test format_text(
+        "options = (backend=CPUBackend(), cache=true)",
+        SciMLStyle(),
+    ) == "options = (backend = CPUBackend(), cache = true)"
+
+    @test format_text("threshold = .5", SciMLStyle()) == "threshold = 0.5"
+
+    @test format_text("scale = 2.", SciMLStyle()) == "scale = 2.0"
+
+    @test format_text(
+        """
+        struct SearchNode
+            payload
+        end
+        """,
+        SciMLStyle(),
+    ) == """
+    struct SearchNode
+        payload::Any
+    end
+    """
+
+    @test format_text(
+        """
+        struct CacheEntry{T<:Real}
+            value::T
+        end
+        """,
+        SciMLStyle(),
+    ) == """
+    struct CacheEntry{T <: Real}
+        value::T
+    end
+    """
+
+    @test format_text(
+        "lookup = Dict{String,Int}()",
+        SciMLStyle(),
+    ) == "lookup = Dict{String, Int}()"
+
+    @test format_text(
+        "empty_options = (;)",
+        SciMLStyle(),
+    ) == "empty_options = NamedTuple()"
+
+    @test format_text(
+        "offset = - 1",
+        SciMLStyle(),
+    ) == "offset = -1"
+
+    @test format_text(
+        "total=left+right*scale",
+        SciMLStyle(),
+    ) == "total = left + right * scale"
+
+    @test format_text(
+        "run_search(graph, algorithm=DepthFirst())",
+        SciMLStyle(),
+    ) == "run_search(graph; algorithm = DepthFirst())"
+
+
     @testset "optimal nesting" begin
         @testset "function definition" begin
             str = """

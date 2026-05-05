@@ -106,6 +106,19 @@ function is_source_prefix_op_call(cst::JuliaSyntax.GreenNode, s::State)
     return operands == 1
 end
 
+force_binaryop_whitespace(
+    ::AbstractStyle,
+    ::JuliaSyntax.Kind,
+    ::PrettyContext,
+    ::Vector{Tuple{JuliaSyntax.Kind,Bool,Bool}},
+) = false
+force_no_unaryop_whitespace(
+    ::AbstractStyle,
+    ::JuliaSyntax.Kind,
+    ::AbstractVector{<:JuliaSyntax.GreenNode},
+    ::Int,
+) = false
+
 function source_op_kind(
     s::State,
     cst::JuliaSyntax.GreenNode,
@@ -2033,6 +2046,7 @@ function p_binaryopcall(
     elseif from_colon
         nospace = true
     end
+    has_ws |= !nospace && force_binaryop_whitespace(style, opkind, ctx, lineage)
     nws = !nospace && has_ws ? 1 : 0
 
     has_dot = false
@@ -2332,7 +2346,8 @@ function p_unaryopcall(
 
     for (i, c) in enumerate(childs)
         offset = s.offset
-        if i > 1 && kind(c) in KSet"Whitespace"
+        if i > 1 && kind(c) in KSet"Whitespace" &&
+           !force_no_unaryop_whitespace(style, opkind, childs, i)
             add_node!(t, Whitespace(1), s)
         end
         n = pretty(style, c, s, ctx, lineage)
