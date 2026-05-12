@@ -21,9 +21,11 @@ function newctx(s::PrettyContext; kwargs...)
     PrettyContext(values...)
 end
 
-function source_kind(s::State, cst::JuliaSyntax.GreenNode, offset::Int)
+function source_kind(s::State, cst::JuliaSyntax.GreenNode, offset::Integer)
     span(cst) == 0 && return nothing
-    val = getsrcval(s.doc, offset:(offset+span(cst)-1))
+    offset = Int(offset)
+    n = Int(span(cst))
+    val = getsrcval(s.doc, offset:(offset+n-1))
     try
         return JuliaSyntax.Kind(val)
     catch
@@ -31,7 +33,7 @@ function source_kind(s::State, cst::JuliaSyntax.GreenNode, offset::Int)
     end
 end
 
-function source_operator_kind(s::State, cst::JuliaSyntax.GreenNode, offset::Int)
+function source_operator_kind(s::State, cst::JuliaSyntax.GreenNode, offset::Integer)
     if JuliaSyntax.is_operator(cst) && !haschildren(cst)
         return kind(cst)
     elseif kind(cst) === K"Identifier" && !haschildren(cst)
@@ -43,7 +45,7 @@ function source_operator_kind(s::State, cst::JuliaSyntax.GreenNode, offset::Int)
     return nothing
 end
 
-function is_source_operator(s::State, cst::JuliaSyntax.GreenNode, offset::Int)
+function is_source_operator(s::State, cst::JuliaSyntax.GreenNode, offset::Integer)
     !isnothing(source_operator_kind(s, cst, offset))
 end
 
@@ -129,7 +131,7 @@ function source_op_kind(s::State, cst::JuliaSyntax.GreenNode, op_indices::Vector
     opkind = op_kind(cst)
     opkind !== K"None" && opkind !== K"Identifier" && return opkind
 
-    offset = s.offset
+    offset = Int(s.offset)
     childs = children(cst)
     for (i, c) in enumerate(childs)
         if i in op_indices
@@ -138,7 +140,7 @@ function source_op_kind(s::State, cst::JuliaSyntax.GreenNode, op_indices::Vector
                 return k
             end
         end
-        offset += span(c)
+        offset += Int(span(c))
     end
     return opkind
 end
